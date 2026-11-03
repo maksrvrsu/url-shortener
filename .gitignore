@@ -1,0 +1,17 @@
+# Binaries
+/bin/
+/dist/
+/url-shortener
+/url-shortener.exe
+*.test
+
+# Environment files
+.env
+
+# IDE / Editor files
+.idea/
+.vscode/
+*.swp
+
+# Docker data volume directory (if mounted locally)
+pgdata/

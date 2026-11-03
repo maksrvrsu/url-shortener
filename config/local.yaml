@@ -1,0 +1,15 @@
+env: "local"
+storage_path: "postgres://postgres:postgres@localhost:5432/url_shortener?sslmode=disable"
+http_server:
+  address: "0.0.0.0:8082"
+  timeout: 4s
+  idle_timeout: 60s
+  user: "admin"
+  password: "secret"
+postgres:
+  host: "localhost"
+  port: "5432"
+  user: "postgres"
+  password: "postgres"
+  db_name: "url_shortener"
+  sslmode: "disable"
