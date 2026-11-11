@@ -22,8 +22,6 @@ type Storage struct {
 	db *sql.DB
 }
 
-// New creates a new PostgreSQL storage instance, establishes a connection,
-// and automatically runs pending migrations from embedded SQL files.
 func New(storagePath string) (*Storage, error) {
 	const op = "storage.postgres.New"
 
@@ -48,7 +46,6 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-// NewWithDB wraps an existing *sql.DB into Storage (useful for tests).
 func NewWithDB(db *sql.DB) *Storage {
 	return &Storage{db: db}
 }
@@ -76,8 +73,6 @@ func runMigrations(db *sql.DB) error {
 	return nil
 }
 
-// SaveURL inserts a new URL with the given alias into PostgreSQL.
-// If the alias already exists, it returns storage.ErrURLExists.
 func (s *Storage) SaveURL(ctx context.Context, urlToSave, alias string) error {
 	const op = "storage.postgres.SaveURL"
 
@@ -102,8 +97,6 @@ func (s *Storage) SaveURL(ctx context.Context, urlToSave, alias string) error {
 	return nil
 }
 
-// GetURL retrieves the original URL by its alias.
-// If not found, it returns storage.ErrURLNotFound.
 func (s *Storage) GetURL(ctx context.Context, alias string) (string, error) {
 	const op = "storage.postgres.GetURL"
 
@@ -125,8 +118,6 @@ func (s *Storage) GetURL(ctx context.Context, alias string) (string, error) {
 	return resURL, nil
 }
 
-// UpdateURL updates the destination URL for the given alias.
-// If the alias does not exist, it returns storage.ErrURLNotFound.
 func (s *Storage) UpdateURL(ctx context.Context, alias, newURL string) error {
 	const op = "storage.postgres.UpdateURL"
 
@@ -153,8 +144,6 @@ func (s *Storage) UpdateURL(ctx context.Context, alias, newURL string) error {
 	return nil
 }
 
-// DeleteURL deletes the record with the given alias.
-// If the alias does not exist, it returns storage.ErrURLNotFound.
 func (s *Storage) DeleteURL(ctx context.Context, alias string) error {
 	const op = "storage.postgres.DeleteURL"
 
@@ -181,7 +170,6 @@ func (s *Storage) DeleteURL(ctx context.Context, alias string) error {
 	return nil
 }
 
-// Close closes the underlying database connection pool.
 func (s *Storage) Close() error {
 	return s.db.Close()
 }

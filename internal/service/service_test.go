@@ -17,7 +17,7 @@ import (
 type mockStorage struct {
 	mu           sync.Mutex
 	data         map[string]string
-	collideCount int // Force collision N times for testing retry
+	collideCount int
 }
 
 func newMockStorage() *mockStorage {
@@ -119,7 +119,7 @@ func TestService_SaveURL_AutoGenerate(t *testing.T) {
 
 func TestService_SaveURL_CollisionRetry(t *testing.T) {
 	st := newMockStorage()
-	st.collideCount = 2 // will fail twice, succeed on 3rd attempt
+	st.collideCount = 2
 	svc := service.New(dummyLogger(), st, 6)
 
 	alias, err := svc.SaveURL(context.Background(), "https://github.com", "")

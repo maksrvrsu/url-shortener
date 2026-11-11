@@ -26,7 +26,6 @@ type Response struct {
 	Alias string `json:"alias,omitempty"`
 }
 
-// URLSaver interface decoupling handler from concrete service implementation
 type URLSaver interface {
 	SaveURL(ctx context.Context, rawURL, alias string) (string, error)
 }

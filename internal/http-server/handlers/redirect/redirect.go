@@ -15,7 +15,6 @@ import (
 	"url-shortener/internal/service"
 )
 
-// URLGetter interface decoupling handler from concrete service
 type URLGetter interface {
 	GetURL(ctx context.Context, alias string) (string, error)
 }

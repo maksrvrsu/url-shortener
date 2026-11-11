@@ -20,7 +20,6 @@ var (
 	ErrInvalidAlias       = errors.New("invalid alias")
 )
 
-// URLStorage defines the persistence operations required by the URL service.
 type URLStorage interface {
 	SaveURL(ctx context.Context, urlToSave, alias string) error
 	GetURL(ctx context.Context, alias string) (string, error)
@@ -45,8 +44,6 @@ func New(log *slog.Logger, storage URLStorage, aliasLength int) *URLService {
 	}
 }
 
-// SaveURL handles saving a URL with either a custom or randomly generated alias.
-// Performs URL validation, alias generation, and collision handling.
 func (s *URLService) SaveURL(ctx context.Context, rawURL, customAlias string) (string, error) {
 	const op = "service.SaveURL"
 
@@ -57,7 +54,6 @@ func (s *URLService) SaveURL(ctx context.Context, rawURL, customAlias string) (s
 
 	customAlias = strings.TrimSpace(customAlias)
 
-	// Case 1: Custom alias provided by client
 	if customAlias != "" {
 		if strings.ContainsAny(customAlias, " /?#") {
 			return "", ErrInvalidAlias
@@ -75,7 +71,6 @@ func (s *URLService) SaveURL(ctx context.Context, rawURL, customAlias string) (s
 		return customAlias, nil
 	}
 
-	// Case 2: Auto-generate alias with retry on collision
 	const maxAttempts = 5
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		generatedAlias := random.NewRandomString(s.aliasLength)
@@ -100,7 +95,6 @@ func (s *URLService) SaveURL(ctx context.Context, rawURL, customAlias string) (s
 	return "", fmt.Errorf("%s: failed to generate unique alias after %d attempts", op, maxAttempts)
 }
 
-// GetURL retrieves the target URL by alias for redirect or lookup.
 func (s *URLService) GetURL(ctx context.Context, alias string) (string, error) {
 	const op = "service.GetURL"
 
@@ -121,7 +115,6 @@ func (s *URLService) GetURL(ctx context.Context, alias string) (string, error) {
 	return resURL, nil
 }
 
-// UpdateURL updates the destination URL of an existing alias.
 func (s *URLService) UpdateURL(ctx context.Context, alias, newURL string) error {
 	const op = "service.UpdateURL"
 
@@ -147,7 +140,6 @@ func (s *URLService) UpdateURL(ctx context.Context, alias, newURL string) error 
 	return nil
 }
 
-// DeleteURL deletes a shortened URL by its alias.
 func (s *URLService) DeleteURL(ctx context.Context, alias string) error {
 	const op = "service.DeleteURL"
 

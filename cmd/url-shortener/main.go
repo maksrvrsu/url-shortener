@@ -96,11 +96,9 @@ func setupRouter(log *slog.Logger, svc *service.URLService, authUser, authPasswo
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.URLFormat)
 
-	// Public routes
 	router.Get("/{alias}", redirect.New(log, svc))
 	router.Get("/url/{alias}", get.New(log, svc))
 
-	// Protected routes (require Basic Auth)
 	router.Group(func(r chi.Router) {
 		r.Use(middleware.BasicAuth("url-shortener", map[string]string{
 			authUser: authPassword,

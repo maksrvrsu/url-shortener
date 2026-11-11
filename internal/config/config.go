@@ -35,7 +35,6 @@ type PostgresConfig struct {
 }
 
 func MustLoad() *Config {
-	// Try loading .env file if present (ignored if file does not exist)
 	_ = godotenv.Load()
 
 	configPath := os.Getenv("CONFIG_PATH")
@@ -54,13 +53,11 @@ func MustLoadByPath(configPath string) *Config {
 			log.Fatalf("cannot read config from %s: %s", configPath, err)
 		}
 	} else {
-		// Fallback to pure environment variables if YAML file is absent
 		if err := cleanenv.ReadEnv(&cfg); err != nil {
 			log.Fatalf("cannot read config from environment: %s", err)
 		}
 	}
 
-	// If StoragePath (DATABASE_URL) is not explicitly provided, build from individual Postgres vars
 	if cfg.StoragePath == "" && cfg.Postgres.User != "" {
 		cfg.StoragePath = fmt.Sprintf(
 			"postgres://%s:%s@%s:%s/%s?sslmode=%s",

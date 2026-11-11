@@ -107,11 +107,9 @@ func setupTestApp(t *testing.T, st service.URLStorage) (*chi.Mux, string, string
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
 
-	// Public routes
 	r.Get("/{alias}", redirect.New(log, svc))
 	r.Get("/url/{alias}", get.New(log, svc))
 
-	// Protected routes (Basic Auth credentials dynamically loaded from .env)
 	r.Group(func(sub chi.Router) {
 		sub.Use(middleware.BasicAuth("url-shortener", map[string]string{
 			user: pass,
@@ -137,7 +135,6 @@ func TestSave_Success(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	// Verify HTTP 201 Created (NOT 200)
 	assert.Equal(t, http.StatusCreated, rec.Code)
 
 	var res map[string]any
@@ -151,7 +148,6 @@ func TestSave_BadRequest(t *testing.T) {
 	st := newInMemoryStorage()
 	router, user, pass := setupTestApp(t, st)
 
-	// Truly malformed JSON (syntax error)
 	malformedJSON := []byte(`{"url": "https://google.com", alias: broken}`)
 	req := httptest.NewRequest(http.MethodPost, "/url", bytes.NewReader(malformedJSON))
 	req.SetBasicAuth(user, pass)
@@ -160,7 +156,6 @@ func TestSave_BadRequest(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	// Verify HTTP 400 Bad Request
 	assert.Equal(t, http.StatusBadRequest, rec.Code)
 
 	var res map[string]any
@@ -173,7 +168,6 @@ func TestSave_Conflict(t *testing.T) {
 	st := newInMemoryStorage()
 	router, user, pass := setupTestApp(t, st)
 
-	// First creation succeeds
 	body := []byte(`{"url": "https://google.com", "alias": "existing-alias"}`)
 	req1 := httptest.NewRequest(http.MethodPost, "/url", bytes.NewReader(body))
 	req1.SetBasicAuth(user, pass)
@@ -182,7 +176,6 @@ func TestSave_Conflict(t *testing.T) {
 	router.ServeHTTP(rec1, req1)
 	require.Equal(t, http.StatusCreated, rec1.Code)
 
-	// Second creation with identical alias must return 409 Conflict (NOT 400)
 	req2 := httptest.NewRequest(http.MethodPost, "/url", bytes.NewReader(body))
 	req2.SetBasicAuth(user, pass)
 	req2.Header.Set("Content-Type", "application/json")
@@ -202,7 +195,6 @@ func TestRedirect_Success(t *testing.T) {
 	st := newInMemoryStorage()
 	router, user, pass := setupTestApp(t, st)
 
-	// Save short URL
 	body := []byte(`{"url": "https://github.com", "alias": "gh"}`)
 	saveReq := httptest.NewRequest(http.MethodPost, "/url", bytes.NewReader(body))
 	saveReq.SetBasicAuth(user, pass)
@@ -211,7 +203,6 @@ func TestRedirect_Success(t *testing.T) {
 	router.ServeHTTP(saveRec, saveReq)
 	require.Equal(t, http.StatusCreated, saveRec.Code)
 
-	// Issue GET /{alias}
 	req := httptest.NewRequest(http.MethodGet, "/gh", nil)
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
@@ -228,7 +219,6 @@ func TestRedirect_NotFound(t *testing.T) {
 	rec := httptest.NewRecorder()
 	router.ServeHTTP(rec, req)
 
-	// Verify HTTP 404 Not Found (NOT 500)
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 
 	var res map[string]any
@@ -277,7 +267,6 @@ func TestUpdate_Success(t *testing.T) {
 	st := newInMemoryStorage()
 	router, user, pass := setupTestApp(t, st)
 
-	// Pre-create URL
 	body := []byte(`{"url": "https://old-domain.com", "alias": "site"}`)
 	saveReq := httptest.NewRequest(http.MethodPost, "/url", bytes.NewReader(body))
 	saveReq.SetBasicAuth(user, pass)
@@ -285,7 +274,6 @@ func TestUpdate_Success(t *testing.T) {
 	saveRec := httptest.NewRecorder()
 	router.ServeHTTP(saveRec, saveReq)
 
-	// Update destination URL
 	updateBody := []byte(`{"url": "https://new-domain.com"}`)
 	updateReq := httptest.NewRequest(http.MethodPut, "/url/site", bytes.NewReader(updateBody))
 	updateReq.SetBasicAuth(user, pass)
@@ -295,7 +283,6 @@ func TestUpdate_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, updateRec.Code)
 
-	// Verify redirect leads to new URL
 	redirReq := httptest.NewRequest(http.MethodGet, "/site", nil)
 	redirRec := httptest.NewRecorder()
 	router.ServeHTTP(redirRec, redirReq)
@@ -306,7 +293,6 @@ func TestUpdate_BadRequest(t *testing.T) {
 	st := newInMemoryStorage()
 	router, user, pass := setupTestApp(t, st)
 
-	// Send truly malformed JSON
 	brokenJSON := []byte(`{"url": not_valid_json}`)
 	req := httptest.NewRequest(http.MethodPut, "/url/site", bytes.NewReader(brokenJSON))
 	req.SetBasicAuth(user, pass)
@@ -335,7 +321,6 @@ func TestDelete_Success(t *testing.T) {
 	st := newInMemoryStorage()
 	router, user, pass := setupTestApp(t, st)
 
-	// Create URL first
 	body := []byte(`{"url": "https://delete-me.com", "alias": "temp-alias"}`)
 	saveReq := httptest.NewRequest(http.MethodPost, "/url", bytes.NewReader(body))
 	saveReq.SetBasicAuth(user, pass)
@@ -343,7 +328,6 @@ func TestDelete_Success(t *testing.T) {
 	saveRec := httptest.NewRecorder()
 	router.ServeHTTP(saveRec, saveReq)
 
-	// Delete it
 	delReq := httptest.NewRequest(http.MethodDelete, "/url/temp-alias", nil)
 	delReq.SetBasicAuth(user, pass)
 	delRec := httptest.NewRecorder()
@@ -351,7 +335,6 @@ func TestDelete_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, delRec.Code)
 
-	// Verify it can no longer be reached (returns 404)
 	redirReq := httptest.NewRequest(http.MethodGet, "/temp-alias", nil)
 	redirRec := httptest.NewRecorder()
 	router.ServeHTTP(redirRec, redirReq)
@@ -376,22 +359,18 @@ func TestAuth_Unauthorized(t *testing.T) {
 
 	body := []byte(`{"url": "https://google.com"}`)
 
-	// Case 1: No authorization header
 	reqNoAuth := httptest.NewRequest(http.MethodPost, "/url", bytes.NewReader(body))
 	reqNoAuth.Header.Set("Content-Type", "application/json")
 	recNoAuth := httptest.NewRecorder()
 	router.ServeHTTP(recNoAuth, reqNoAuth)
 
-	// Must be 401 Unauthorized
 	assert.Equal(t, http.StatusUnauthorized, recNoAuth.Code)
 
-	// Case 2: Wrong credentials
 	reqWrongAuth := httptest.NewRequest(http.MethodPost, "/url", bytes.NewReader(body))
 	reqWrongAuth.SetBasicAuth("wrong_user", "wrong_password")
 	reqWrongAuth.Header.Set("Content-Type", "application/json")
 	recWrongAuth := httptest.NewRecorder()
 	router.ServeHTTP(recWrongAuth, reqWrongAuth)
 
-	// Must be 401 Unauthorized
 	assert.Equal(t, http.StatusUnauthorized, recWrongAuth.Code)
 }
