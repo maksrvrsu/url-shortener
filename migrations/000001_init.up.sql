@@ -4,5 +4,3 @@ CREATE TABLE IF NOT EXISTS url (
     url TEXT NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
-CREATE INDEX IF NOT EXISTS idx_alias ON url(alias);

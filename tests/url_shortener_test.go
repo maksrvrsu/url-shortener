@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -82,16 +83,40 @@ func (s *inMemoryStorage) DeleteURL(ctx context.Context, alias string) error {
 	return nil
 }
 
+type failingStorage struct{}
+
+func (f *failingStorage) SaveURL(ctx context.Context, urlToSave, alias string) error {
+	return errors.New("storage failure")
+}
+
+func (f *failingStorage) GetURL(ctx context.Context, alias string) (string, error) {
+	return "", errors.New("storage failure")
+}
+
+func (f *failingStorage) UpdateURL(ctx context.Context, alias, newURL string) error {
+	return errors.New("storage failure")
+}
+
+func (f *failingStorage) DeleteURL(ctx context.Context, alias string) error {
+	return errors.New("storage failure")
+}
+
 func getCredentials(t *testing.T) (string, string) {
 	t.Helper()
 	_ = godotenv.Load("../.env")
 	_ = godotenv.Load(".env")
 
 	user := os.Getenv("HTTP_SERVER_USER")
-	pass := os.Getenv("HTTP_SERVER_PASSWORD")
+	if user == "" {
+		user = "test_user"
+		t.Setenv("HTTP_SERVER_USER", user)
+	}
 
-	require.NotEmpty(t, user, "HTTP_SERVER_USER must be provided via environment or .env")
-	require.NotEmpty(t, pass, "HTTP_SERVER_PASSWORD must be provided via environment or .env")
+	pass := os.Getenv("HTTP_SERVER_PASSWORD")
+	if pass == "" {
+		pass = "test_password"
+		t.Setenv("HTTP_SERVER_PASSWORD", pass)
+	}
 
 	return user, pass
 }
@@ -191,6 +216,27 @@ func TestSave_Conflict(t *testing.T) {
 	assert.Contains(t, res["error"], "alias already exists")
 }
 
+func TestSave_InternalError(t *testing.T) {
+	st := &failingStorage{}
+	router, user, pass := setupTestApp(t, st)
+
+	body := []byte(`{"url": "https://google.com", "alias": "fail-save"}`)
+	req := httptest.NewRequest(http.MethodPost, "/url", bytes.NewReader(body))
+	req.SetBasicAuth(user, pass)
+	req.Header.Set("Content-Type", "application/json")
+
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+	var res map[string]any
+	err := json.NewDecoder(rec.Body).Decode(&res)
+	require.NoError(t, err)
+	assert.Equal(t, "Error", res["status"])
+	assert.Equal(t, "failed to add url", res["error"])
+}
+
 func TestRedirect_Success(t *testing.T) {
 	st := newInMemoryStorage()
 	router, user, pass := setupTestApp(t, st)
@@ -228,6 +274,23 @@ func TestRedirect_NotFound(t *testing.T) {
 	assert.Equal(t, "not found", res["error"])
 }
 
+func TestRedirect_InternalError(t *testing.T) {
+	st := &failingStorage{}
+	router, _, _ := setupTestApp(t, st)
+
+	req := httptest.NewRequest(http.MethodGet, "/fail-redir", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+	var res map[string]any
+	err := json.NewDecoder(rec.Body).Decode(&res)
+	require.NoError(t, err)
+	assert.Equal(t, "Error", res["status"])
+	assert.Equal(t, "internal error", res["error"])
+}
+
 func TestGetURL_Success(t *testing.T) {
 	st := newInMemoryStorage()
 	router, user, pass := setupTestApp(t, st)
@@ -261,6 +324,23 @@ func TestGetURL_NotFound(t *testing.T) {
 	router.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestGetURL_InternalError(t *testing.T) {
+	st := &failingStorage{}
+	router, _, _ := setupTestApp(t, st)
+
+	req := httptest.NewRequest(http.MethodGet, "/url/fail-get", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+	var res map[string]any
+	err := json.NewDecoder(rec.Body).Decode(&res)
+	require.NoError(t, err)
+	assert.Equal(t, "Error", res["status"])
+	assert.Equal(t, "internal error", res["error"])
 }
 
 func TestUpdate_Success(t *testing.T) {
@@ -317,6 +397,26 @@ func TestUpdate_NotFound(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+func TestUpdate_InternalError(t *testing.T) {
+	st := &failingStorage{}
+	router, user, pass := setupTestApp(t, st)
+
+	body := []byte(`{"url": "https://some-url.com"}`)
+	req := httptest.NewRequest(http.MethodPut, "/url/fail-update", bytes.NewReader(body))
+	req.SetBasicAuth(user, pass)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rec.Code)
+
+	var res map[string]any
+	err := json.NewDecoder(rec.Body).Decode(&res)
+	require.NoError(t, err)
+	assert.Equal(t, "Error", res["status"])
+	assert.Equal(t, "failed to update url", res["error"])
+}
+
 func TestDelete_Success(t *testing.T) {
 	st := newInMemoryStorage()
 	router, user, pass := setupTestApp(t, st)
@@ -351,6 +451,24 @@ func TestDelete_NotFound(t *testing.T) {
 	router.ServeHTTP(delRec, delReq)
 
 	assert.Equal(t, http.StatusNotFound, delRec.Code)
+}
+
+func TestDelete_InternalError(t *testing.T) {
+	st := &failingStorage{}
+	router, user, pass := setupTestApp(t, st)
+
+	delReq := httptest.NewRequest(http.MethodDelete, "/url/fail-delete", nil)
+	delReq.SetBasicAuth(user, pass)
+	delRec := httptest.NewRecorder()
+	router.ServeHTTP(delRec, delReq)
+
+	assert.Equal(t, http.StatusInternalServerError, delRec.Code)
+
+	var res map[string]any
+	err := json.NewDecoder(delRec.Body).Decode(&res)
+	require.NoError(t, err)
+	assert.Equal(t, "Error", res["status"])
+	assert.Equal(t, "failed to delete url", res["error"])
 }
 
 func TestAuth_Unauthorized(t *testing.T) {
