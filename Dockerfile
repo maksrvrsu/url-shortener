@@ -1,4 +1,3 @@
-# Stage 1: Build the Go binary
 FROM golang:1.27-alpine AS builder
 
 WORKDIR /app
@@ -12,7 +11,6 @@ COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/bin/url-shortener ./cmd/url-shortener
 
-# Stage 2: Runtime image
 FROM alpine:3.21
 
 WORKDIR /app

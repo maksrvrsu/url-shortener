@@ -214,7 +214,7 @@ docker compose up --build
 
 Тесты разделены по изолированным тест-функциям для каждого тест-кейса в соответствии с чек-листом.
 
-Креды для Basic Auth в тестах динамически подтягиваются из файла `.env` (без какого-либо хардкода).
+Креды для Basic Auth в тестах подтягиваются из окружения или файла `.env`, а при их отсутствии автоматически выставляются в тестовом контексте через `t.Setenv`, благодаря чему тесты работают из коробки на чистом клоне.
 
 ```bash
 # Запуск всех тестов проекта
@@ -225,11 +225,16 @@ go test -v ./...
 - `TestSave_Success`: успешное создание (201 Created).
 - `TestSave_BadRequest`: проверка на **реально битый синтаксис JSON** (400 Bad Request).
 - `TestSave_Conflict`: попытка создать уже существующий alias (409 Conflict).
+- `TestSave_InternalError`: сбой хранилища при сохранении (500 Internal Server Error).
 - `TestRedirect_Success`: успешный редирект (302 Found + заголовок `Location`).
 - `TestRedirect_NotFound`: редирект по несуществующему alias (404 Not Found).
+- `TestRedirect_InternalError`: сбой сервиса при редиректе (500 Internal Server Error).
 - `TestGetURL_Success` / `TestGetURL_NotFound`: получение ссылки по alias (200 / 404).
+- `TestGetURL_InternalError`: сбой сервиса при получении (500 Internal Server Error).
 - `TestUpdate_Success` / `TestUpdate_BadRequest` / `TestUpdate_NotFound`: обновление URL (200 / 400 / 404).
+- `TestUpdate_InternalError`: сбой сервиса при обновлении (500 Internal Server Error).
 - `TestDelete_Success` / `TestDelete_NotFound`: удаление URL (200 / 404).
+- `TestDelete_InternalError`: сбой сервиса при удалении (500 Internal Server Error).
 - `TestAuth_Unauthorized`: запрос без кредов или с неверным паролем (401 Unauthorized).
 - `TestService_*`: модульные тесты сервисного слоя (генерация alias, ретраи коллизий, валидация).
 
@@ -268,7 +273,7 @@ url-shortener/
 │       ├── postgres/                # Слой работы с БД PostgreSQL (pgx/v5)
 │       └── storage.go               # Доменные ошибки хранилища
 ├── migrations/
-│   ├── 000001_init.up.sql           # Миграция создания таблицы url и индекса
+│   ├── 000001_init.up.sql           # Миграция создания таблицы url
 │   ├── 000001_init.down.sql         # Миграция отката
 │   └── migrations.go                # Встраивание SQL-файлов через embed.FS
 ├── tests/
